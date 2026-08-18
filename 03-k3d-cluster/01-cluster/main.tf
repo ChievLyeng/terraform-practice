@@ -22,6 +22,7 @@ resource "null_resource" "k3d_cluster" {
     command = <<-EOT
       k3d cluster create ${self.triggers.cluster_name} \
         --agents ${self.triggers.agent_count} \
+        -p "30080:30080@loadbalancer" \
         --wait --timeout 120s
       k3d kubeconfig write ${self.triggers.cluster_name} \
         --output ${path.module}/../kubeconfig.yaml
