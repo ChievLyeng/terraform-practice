@@ -13,5 +13,5 @@ variable "server_node" {
 variable "lxd_image" {
   description = "LXD image alias — ubuntu images are the most reliable for the k3s install script"
   type        = string
-  default     = "images:ubuntu/22.04"
+  default     = "ubuntu:22.04"
 }
