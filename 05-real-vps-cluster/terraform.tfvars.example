@@ -1,0 +1,28 @@
+# Copy this to terraform.tfvars and fill in your real values.
+# terraform.tfvars is git-ignored on purpose — it's the one file in
+# this whole project that would contain real IPs/paths, so it never
+# gets committed.
+
+nodes = [
+  {
+    name       = "server"
+    role       = "server"
+    public_ip  = "203.0.113.10"
+    private_ip = "10.0.0.10" # same as public_ip if you have no private network
+  },
+  {
+    name       = "agent-0"
+    role       = "agent"
+    public_ip  = "203.0.113.11"
+    private_ip = "10.0.0.11"
+  },
+  {
+    name       = "agent-1"
+    role       = "agent"
+    public_ip  = "203.0.113.12"
+    private_ip = "10.0.0.12"
+  },
+]
+
+ssh_user              = "root"
+ssh_private_key_path  = "~/.ssh/id_rsa"

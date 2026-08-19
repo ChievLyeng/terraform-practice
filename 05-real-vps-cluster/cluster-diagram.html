@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3-VPS k3s Cluster — Architecture</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #161d2e;
+    --panel-border: #2a3550;
+    --control: #3b6fd8;
+    --control-fill: #1c2c4d;
+    --data: #2fae74;
+    --data-fill: #16332a;
+    --overlay: #e0a72e;
+    --ssh: #b565e0;
+    --text: #e7ecf7;
+    --muted: #93a0c2;
+    --danger: #e05a5a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 28px 20px 40px;
+  }
+  h1 {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    text-align: center;
+  }
+  p.sub {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 26px;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 22px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  svg { width: 100%; height: auto; display: block; }
+  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .note {
+    max-width: 1080px;
+    margin: 26px auto 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.55;
+    border-top: 1px solid var(--panel-border);
+    padding-top: 16px;
+  }
+  .note b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>3-VPS k3s Cluster — how the pieces connect</h1>
+  <p class="sub">One control-plane server, two worker agents, each a fully separate real machine</p>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--control)"></i>Control plane (server VPS only)</span>
+    <span><i class="dot" style="background:var(--data)"></i>Data plane (every VPS)</span>
+    <span><i class="dot" style="background:var(--overlay)"></i>Pod network overlay (flannel / UDP 8472)</span>
+    <span><i class="dot" style="background:var(--ssh)"></i>Terraform bootstrap (SSH, one-time)</span>
+  </div>
+
+  <svg viewBox="0 0 1080 680" xmlns="http://www.w3.org/2000/svg">
+    <!-- Laptop / CI box -->
+    <rect x="430" y="16" width="220" height="60" rx="10" fill="var(--panel)" stroke="var(--ssh)" stroke-width="1.5"/>
+    <text x="540" y="40" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="600">Your laptop / CI</text>
+    <text x="540" y="58" text-anchor="middle" fill="var(--muted)" font-size="11.5">terraform apply</text>
+
+    <!-- SSH lines from laptop to each VPS (dashed, one-time bootstrap) -->
+    <path d="M 470 76 C 300 130, 220 200, 170 250" fill="none" stroke="var(--ssh)" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <path d="M 540 76 L 540 250" fill="none" stroke="var(--ssh)" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <path d="M 610 76 C 780 130, 860 200, 910 250" fill="none" stroke="var(--ssh)" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <text x="270" y="180" fill="var(--ssh)" font-size="11">SSH (remote-exec)</text>
+    <text x="555" y="170" fill="var(--ssh)" font-size="11">SSH</text>
+    <text x="790" y="180" fill="var(--ssh)" font-size="11">SSH (remote-exec)</text>
+
+    <!-- kubectl arrow, ongoing, from laptop to server API -->
+    <path d="M 500 76 C 420 150, 400 210, 400 245" fill="none" stroke="var(--control)" stroke-width="2"/>
+    <text x="330" y="130" fill="var(--control)" font-size="11" font-weight="600">kubectl → :6443 (ongoing)</text>
+
+    <!-- VPS 1: server -->
+    <g>
+      <rect x="60" y="250" width="280" height="330" rx="12" fill="var(--panel)" stroke="var(--panel-border)" stroke-width="1.5"/>
+      <text x="200" y="278" text-anchor="middle" font-size="14" font-weight="700" fill="var(--text)">VPS 1 — server</text>
+      <text x="200" y="296" text-anchor="middle" font-size="11" fill="var(--muted)">control-plane node</text>
+
+      <!-- control plane components -->
+      <rect x="80" y="312" width="240" height="140" rx="8" fill="var(--control-fill)" stroke="var(--control)" stroke-width="1.2"/>
+      <text x="200" y="330" text-anchor="middle" font-size="11.5" fill="var(--control)" font-weight="600">control plane</text>
+      <text x="95" y="350" font-size="11" fill="var(--text)">• kube-apiserver :6443</text>
+      <text x="95" y="368" font-size="11" fill="var(--text)">• scheduler</text>
+      <text x="95" y="386" font-size="11" fill="var(--text)">• controller-manager</text>
+      <text x="95" y="404" font-size="11" fill="var(--text)">• datastore (SQLite/kine)</text>
+      <text x="95" y="422" font-size="11" fill="var(--text)">• node-token (for joins)</text>
+
+      <!-- data plane on server -->
+      <rect x="80" y="464" width="240" height="96" rx="8" fill="var(--data-fill)" stroke="var(--data)" stroke-width="1.2"/>
+      <text x="200" y="482" text-anchor="middle" font-size="11.5" fill="var(--data)" font-weight="600">data plane</text>
+      <text x="95" y="502" font-size="11" fill="var(--text)">• kubelet</text>
+      <text x="95" y="520" font-size="11" fill="var(--text)">• containerd</text>
+      <text x="95" y="538" font-size="11" fill="var(--text)">• pods can run here too</text>
+    </g>
+
+    <!-- VPS 2: agent-0 -->
+    <g>
+      <rect x="400" y="250" width="280" height="330" rx="12" fill="var(--panel)" stroke="var(--panel-border)" stroke-width="1.5"/>
+      <text x="540" y="278" text-anchor="middle" font-size="14" font-weight="700" fill="var(--text)">VPS 2 — agent-0</text>
+      <text x="540" y="296" text-anchor="middle" font-size="11" fill="var(--muted)">worker node</text>
+
+      <rect x="420" y="330" width="240" height="150" rx="8" fill="var(--data-fill)" stroke="var(--data)" stroke-width="1.2"/>
+      <text x="540" y="350" text-anchor="middle" font-size="11.5" fill="var(--data)" font-weight="600">data plane</text>
+      <text x="435" y="372" font-size="11" fill="var(--text)">• kubelet</text>
+      <text x="435" y="392" font-size="11" fill="var(--text)">• containerd</text>
+      <text x="435" y="412" font-size="11" fill="var(--text)">• kube-proxy</text>
+      <text x="435" y="432" font-size="11" fill="var(--text)">• your app's pods</text>
+      <text x="435" y="452" font-size="11" fill="var(--text)">  (nginx, api, db, ...)</text>
+
+      <text x="540" y="530" text-anchor="middle" font-size="11" fill="var(--muted)">joined via K3S_URL +</text>
+      <text x="540" y="546" text-anchor="middle" font-size="11" fill="var(--muted)">K3S_TOKEN over SSH</text>
+    </g>
+
+    <!-- VPS 3: agent-1 -->
+    <g>
+      <rect x="740" y="250" width="280" height="330" rx="12" fill="var(--panel)" stroke="var(--panel-border)" stroke-width="1.5"/>
+      <text x="880" y="278" text-anchor="middle" font-size="14" font-weight="700" fill="var(--text)">VPS 3 — agent-1</text>
+      <text x="880" y="296" text-anchor="middle" font-size="11" fill="var(--muted)">worker node</text>
+
+      <rect x="760" y="330" width="240" height="150" rx="8" fill="var(--data-fill)" stroke="var(--data)" stroke-width="1.2"/>
+      <text x="880" y="350" text-anchor="middle" font-size="11.5" fill="var(--data)" font-weight="600">data plane</text>
+      <text x="775" y="372" font-size="11" fill="var(--text)">• kubelet</text>
+      <text x="775" y="392" font-size="11" fill="var(--text)">• containerd</text>
+      <text x="775" y="412" font-size="11" fill="var(--text)">• kube-proxy</text>
+      <text x="775" y="432" font-size="11" fill="var(--text)">• your app's pods</text>
+      <text x="775" y="452" font-size="11" fill="var(--text)">  (nginx, api, db, ...)</text>
+
+      <text x="880" y="530" text-anchor="middle" font-size="11" fill="var(--muted)">joined via K3S_URL +</text>
+      <text x="880" y="546" text-anchor="middle" font-size="11" fill="var(--muted)">K3S_TOKEN over SSH</text>
+    </g>
+
+    <!-- overlay network line connecting all 3 pod networks -->
+    <path d="M 320 500 C 400 620, 680 620, 760 500" fill="none" stroke="var(--overlay)" stroke-width="2.2" stroke-dasharray="2,5"/>
+    <path d="M 320 460 C 360 240, 720 240, 760 460" fill="none" stroke="var(--overlay)" stroke-width="2.2" stroke-dasharray="2,5"/>
+    <text x="540" y="640" text-anchor="middle" fill="var(--overlay)" font-size="12" font-weight="600">
+      pod network overlay — flannel VXLAN, UDP 8472, every node ↔ every node
+    </text>
+
+    <!-- firewall boundary note -->
+    <rect x="40" y="600" width="1000" height="1" fill="var(--panel-border)"/>
+  </svg>
+
+  <div class="note">
+    <p><b>What Terraform actually does (the purple dashed lines):</b> it SSHes into VPS 1 once to install k3s as the server,
+    reads back the join token over another SSH call, then SSHes into VPS 2 and VPS 3 to install k3s as agents pointed at
+    VPS 1's private IP. After that, Terraform's job is finished — those connections aren't used again unless you re-run
+    <code>apply</code>.</p>
+    <p><b>What keeps running afterward (blue, green, gold):</b> the control plane on VPS 1 continuously makes decisions
+    (what to schedule, where, whether anything needs restarting) via its own reconciliation loop — this is the part that
+    keeps running independently of Terraform, forever, until you turn it off. Each VPS's kubelet manages whatever pods got
+    assigned to it, and the flannel overlay network is what lets a pod on VPS 2 talk to a pod on VPS 3 by IP as if they
+    were on the same LAN, even though they're two separate physical machines possibly in different racks or data centers.</p>
+    <p><b>Firewall reminder:</b> ports 6443 (API server), 10250 (kubelet), and UDP 8472 (flannel) need to be open
+    <i>between these three VPS specifically</i> — not to the whole internet. That's what the earlier practice stage's
+    "iptables FORWARD DROP" problem was really teaching, just inside a fake LXD network instead of a real firewall.</p>
+  </div>
+</div>
+</body>
+</html>
