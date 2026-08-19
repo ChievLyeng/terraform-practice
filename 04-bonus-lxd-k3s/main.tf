@@ -83,7 +83,7 @@ resource "null_resource" "k3s_server" {
   provisioner "local-exec" {
     command = <<-EOT
       set -e
-      lxc exec ${self.triggers.instance_name} -- sh -c 'curl -4 -sfL https://get.k3s.io | sh -'
+      lxc exec ${self.triggers.instance_name} -- sh -c 'curl -4 -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --kubelet-arg=feature-gates=KubeletInUserNamespace=true" sh -'
       mkdir -p ${path.module}/generated
       lxc exec ${self.triggers.instance_name} -- cat /var/lib/rancher/k3s/server/node-token > ${path.module}/generated/node-token
     EOT
@@ -113,7 +113,7 @@ resource "null_resource" "k3s_agent" {
     command = <<-EOT
       set -e
       lxc exec ${self.triggers.instance_name} -- sh -c \
-        'curl -4 -sfL https://get.k3s.io | K3S_URL=https://${self.triggers.server_ip}:6443 K3S_TOKEN=${self.triggers.token} sh -'
+        'curl -4 -sfL https://get.k3s.io | K3S_URL=https://${self.triggers.server_ip}:6443 K3S_TOKEN=${self.triggers.token} INSTALL_K3S_EXEC="agent --kubelet-arg=feature-gates=KubeletInUserNamespace=true" sh -'
     EOT
   }
 
